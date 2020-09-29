@@ -93,6 +93,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _map_map_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./map/map.component */ "cNoH");
 /* harmony import */ var _services_marker_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./_services/marker.service */ "q++V");
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+/* harmony import */ var _services_pop_up_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./_services/pop-up.service */ "v+AT");
+
 
 
 
@@ -104,7 +106,7 @@ __webpack_require__.r(__webpack_exports__);
 class AppModule {
 }
 AppModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineNgModule"]({ type: AppModule, bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_3__["AppComponent"]] });
-AppModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjector"]({ factory: function AppModule_Factory(t) { return new (t || AppModule)(); }, providers: [_services_marker_service__WEBPACK_IMPORTED_MODULE_5__["MarkerService"]], imports: [[
+AppModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjector"]({ factory: function AppModule_Factory(t) { return new (t || AppModule)(); }, providers: [_services_marker_service__WEBPACK_IMPORTED_MODULE_5__["MarkerService"], _services_pop_up_service__WEBPACK_IMPORTED_MODULE_7__["PopUpService"]], imports: [[
             _angular_platform_browser__WEBPACK_IMPORTED_MODULE_0__["BrowserModule"],
             _app_routing_module__WEBPACK_IMPORTED_MODULE_2__["AppRoutingModule"],
             _angular_common_http__WEBPACK_IMPORTED_MODULE_6__["HttpClientModule"]
@@ -125,7 +127,7 @@ AppModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjector
                     _app_routing_module__WEBPACK_IMPORTED_MODULE_2__["AppRoutingModule"],
                     _angular_common_http__WEBPACK_IMPORTED_MODULE_6__["HttpClientModule"]
                 ],
-                providers: [_services_marker_service__WEBPACK_IMPORTED_MODULE_5__["MarkerService"]],
+                providers: [_services_marker_service__WEBPACK_IMPORTED_MODULE_5__["MarkerService"], _services_pop_up_service__WEBPACK_IMPORTED_MODULE_7__["PopUpService"]],
                 bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_3__["AppComponent"]]
             }]
     }], null, null); })();
@@ -171,7 +173,8 @@ class MapComponent {
     }
     ngAfterViewInit() {
         this.initMap();
-        this.markerService.makeCapitalMarkers(this.map);
+        // this.markerService.makeCapitalMarkers(this.map);
+        this.markerService.makeCapitalCircleMarkers(this.map);
     }
     initMap() {
         this.map = leaflet__WEBPACK_IMPORTED_MODULE_1__["map"]('map', {
@@ -219,14 +222,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var leaflet__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! leaflet */ "4R65");
 /* harmony import */ var leaflet__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(leaflet__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+/* harmony import */ var _services_pop_up_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../_services/pop-up.service */ "v+AT");
+
 
 
 
 
 class MarkerService {
-    constructor(http) {
+    constructor(http, popupService) {
         this.http = http;
+        this.popupService = popupService;
         this.capitals = '/assets/data/usa-capitals.geojson';
+    }
+    static ScaledRadius(val, maxVal) {
+        return 20 * (val / maxVal);
     }
     makeCapitalMarkers(map) {
         this.http.get(this.capitals).subscribe((res) => {
@@ -237,15 +246,64 @@ class MarkerService {
             }
         });
     }
+    makeCapitalCircleMarkers(map) {
+        this.http.get(this.capitals).subscribe((res) => {
+            // Find the maximum population to scale the radii by.
+            const maxVal = Math.max(...res.features.map(x => x.properties.population), 0);
+            for (const c of res.features) {
+                const lat = c.geometry.coordinates[0];
+                const lon = c.geometry.coordinates[1];
+                const circle = leaflet__WEBPACK_IMPORTED_MODULE_1__["circleMarker"]([lon, lat], {
+                    radius: MarkerService.ScaledRadius(c.properties.population, maxVal)
+                }); //.addTo(map); <-- removed this
+                circle.bindPopup(this.popupService.makeCapitalPopup(c.properties));
+                circle.addTo(map);
+            }
+        });
+    }
 }
-MarkerService.ɵfac = function MarkerService_Factory(t) { return new (t || MarkerService)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__["HttpClient"])); };
+MarkerService.ɵfac = function MarkerService_Factory(t) { return new (t || MarkerService)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_services_pop_up_service__WEBPACK_IMPORTED_MODULE_3__["PopUpService"])); };
 MarkerService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineInjectable"]({ token: MarkerService, factory: MarkerService.ɵfac, providedIn: 'root' });
 /*@__PURE__*/ (function () { _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵsetClassMetadata"](MarkerService, [{
         type: _angular_core__WEBPACK_IMPORTED_MODULE_0__["Injectable"],
         args: [{
                 providedIn: 'root'
             }]
-    }], function () { return [{ type: _angular_common_http__WEBPACK_IMPORTED_MODULE_2__["HttpClient"] }]; }, null); })();
+    }], function () { return [{ type: _angular_common_http__WEBPACK_IMPORTED_MODULE_2__["HttpClient"] }, { type: _services_pop_up_service__WEBPACK_IMPORTED_MODULE_3__["PopUpService"] }]; }, null); })();
+
+
+/***/ }),
+
+/***/ "v+AT":
+/*!*********************************************!*\
+  !*** ./src/app/_services/pop-up.service.ts ***!
+  \*********************************************/
+/*! exports provided: PopUpService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "PopUpService", function() { return PopUpService; });
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ "fXoL");
+
+
+class PopUpService {
+    constructor() { }
+    makeCapitalPopup(data) {
+        return `` +
+            `<div>Capital: ${data.capital}</div>` +
+            `<div>State: ${data.state}</div>` +
+            `<div>Population: ${data.population}</div>`;
+    }
+}
+PopUpService.ɵfac = function PopUpService_Factory(t) { return new (t || PopUpService)(); };
+PopUpService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineInjectable"]({ token: PopUpService, factory: PopUpService.ɵfac, providedIn: 'root' });
+/*@__PURE__*/ (function () { _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵsetClassMetadata"](PopUpService, [{
+        type: _angular_core__WEBPACK_IMPORTED_MODULE_0__["Injectable"],
+        args: [{
+                providedIn: 'root'
+            }]
+    }], function () { return []; }, null); })();
 
 
 /***/ }),
